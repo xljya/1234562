@@ -126,6 +126,19 @@ export const TEXT = {
     invalidEmailPassword: 'Invalid email/password',
   },
   admin: {
+    uploadDuplicate: 'This image has already been uploaded or is uploading',
+    uploadFailed: 'Upload failed. Please try again.',
+    uploadRefreshFailed: 'Upload succeeded, but the list could not refresh.',
+    uploadSummary: 'Uploaded {{success}}, duplicates {{duplicate}}, ' +
+      'failed {{failed}}',
+    fingerprintTitle: 'Legacy image deduplication index',
+    fingerprintDescription: 'Index existing photos and pending uploads ' +
+      'without deleting any images. Original fingerprints cannot be ' +
+      'recovered from compressed legacy images.',
+    fingerprintStart: 'Start indexing',
+    fingerprintProgress: 'Processed {{done}} / {{total}}, ' +
+      'additional duplicates {{duplicate}}, failed {{failed}}',
+    fingerprintRetry: 'Retry failed items',
     uploadPhotos: 'Upload Photos',
     upload: 'Upload',
     uploadPlural: 'Uploads',

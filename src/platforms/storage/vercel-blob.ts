@@ -59,12 +59,20 @@ export const vercelBlobCopy = (
 
 export const vercelBlobDelete = (fileName: string) => del(fileName);
 
-export const vercelBlobList = (
+export const vercelBlobList = async (
   prefix: string,
-): Promise<StorageListResponse> => list({ prefix })
-  .then(({ blobs }) => blobs.map(({ url, uploadedAt, size }) => ({
-    url,
-    fileName: getFileNamePartsFromStorageUrl(url).fileName,
-    uploadedAt,
-    size: formatBytes(size),
-  })));
+): Promise<StorageListResponse> => {
+  const result: StorageListResponse = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix, cursor });
+    result.push(...page.blobs.map(({ url, uploadedAt, size }) => ({
+      url,
+      fileName: getFileNamePartsFromStorageUrl(url).fileName,
+      uploadedAt,
+      size: formatBytes(size),
+    })));
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return result;
+};

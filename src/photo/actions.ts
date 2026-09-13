@@ -31,9 +31,10 @@ import {
 } from './form';
 import { redirect } from 'next/navigation';
 import {
-  deleteFile,
   getFileNamePartsFromStorageUrl,
 } from '@/platforms/storage';
+import { deleteTrackedFile as deleteFile,
+  commitPhotoUpload } from './dedup/storage';
 import {
   revalidateAdminPaths,
   revalidateAllKeysAndPaths,
@@ -114,6 +115,7 @@ export const createPhotoAction = async (
 
     const albumTitles = getAlbumTitlesFromFormData(formData);
 
+    const uploadUrl = photo.url;
     const updatedUrl = await convertUploadToPhoto({
       uploadUrl: photo.url,
       shouldStripGpsData,
@@ -122,6 +124,7 @@ export const createPhotoAction = async (
     if (updatedUrl) {
       photo.url = updatedUrl;
       await insertPhoto(photo);
+      await commitPhotoUpload(uploadUrl, updatedUrl);
       await addAlbumTitlesToPhoto(albumTitles, photo.id, false);
       await propagateRecipeTitleIfNecessary(formData, photo);
       revalidateAllKeysAndPaths();
@@ -231,6 +234,7 @@ const addUpload = async ({
         await convertFormDataToPhotoDbInsertAndLookupRecipeTitle(form);
       photo.url = updatedUrl;
       await insertPhoto(photo);
+      await commitPhotoUpload(url, updatedUrl);
       if (albumIds.length > 0) {
         await addPhotoAlbumIds([photo.id], albumIds);
       }
@@ -358,7 +362,7 @@ export const updatePhotoAction = async (
     await updatePhoto(photo)
       .then(async () => {
         if (urlToDelete) {
-          await deleteFile(urlToDelete);
+          await commitPhotoUpload(urlToDelete, photo.url);
         }
         await propagateRecipeTitleIfNecessary(formData, photo);
       });
@@ -713,7 +717,9 @@ export const syncPhotoAction = async (
 
         await updatePhoto(photoFormDbInsert)
           .then(async () => {
-            if (urlToDelete) { await deleteFile(urlToDelete); }
+            if (urlToDelete) {
+              await commitPhotoUpload(urlToDelete, photoFormDbInsert.url);
+            }
           });
 
         revalidateAllKeysAndPaths();

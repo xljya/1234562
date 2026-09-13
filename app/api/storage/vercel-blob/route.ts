@@ -18,6 +18,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const session = await auth();
         if (session?.user) {
           return {
+            addRandomSuffix: false,
             maximumSizeInBytes: MAX_PHOTO_UPLOAD_SIZE_IN_BYTES,
             allowedContentTypes: ACCEPTED_PHOTO_FILE_TYPES,
           };

@@ -1,6 +1,6 @@
 import { POSTGRES_SSL_ENABLED } from '@/app/config';
 import { removeParamsFromUrl } from '@/utility/url';
-import { Pool, QueryResult, QueryResultRow } from 'pg';
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
 
 const pool = new Pool({
   ...process.env.POSTGRES_URL && {
@@ -11,6 +11,23 @@ const pool = new Pool({
   },
   ...POSTGRES_SSL_ENABLED && { ssl: true },
 });
+
+export const withTransaction = async <T>(
+  callback: (client: PoolClient) => Promise<T>,
+): Promise<T> => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+};
 
 export type Primitive = string | number | boolean | undefined | null;
 

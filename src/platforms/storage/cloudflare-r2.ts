@@ -1,6 +1,6 @@
 import {
   S3Client,
-  ListObjectsCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   DeleteObjectCommand,
   CopyObjectCommand,
@@ -85,20 +85,27 @@ export const cloudflareR2Copy = async (
 
 export const cloudflareR2List = async (
   Prefix: string,
-): Promise<StorageListResponse> =>
-  cloudflareR2Client().send(new ListObjectsCommand({
-    Bucket: CLOUDFLARE_R2_BUCKET,
-    Prefix,
-  }))
-    .then((data) => data.Contents?.map(({ Key, LastModified, Size }) => ({
+): Promise<StorageListResponse> => {
+  const result: StorageListResponse = [];
+  let ContinuationToken: string | undefined;
+  do {
+    const data = await cloudflareR2Client().send(new ListObjectsV2Command({
+      Bucket: CLOUDFLARE_R2_BUCKET, Prefix, ContinuationToken,
+    }));
+    result.push(...(data.Contents ?? []).map(({ Key, LastModified, Size }) => ({
       url: urlForKey(Key),
       fileName: Key ?? '',
       uploadedAt: LastModified,
       size: Size ? formatBytes(Size) : undefined,
-    })) ?? []);
+    })));
+    ContinuationToken = data.IsTruncated
+      ? data.NextContinuationToken : undefined;
+  } while (ContinuationToken);
+  return result;
+};
 
 export const cloudflareR2Delete = async (Key: string) => {
-  cloudflareR2Client().send(new DeleteObjectCommand({
+  await cloudflareR2Client().send(new DeleteObjectCommand({
     Bucket: CLOUDFLARE_R2_BUCKET,
     Key,
   }));

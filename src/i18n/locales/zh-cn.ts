@@ -127,6 +127,16 @@ export const TEXT: I18N = {
     invalidEmailPassword: '邮箱或密码错误',
   },
   admin: {
+    uploadDuplicate: '该图片已上传或正在上传，请勿重复上传',
+    uploadFailed: '上传失败，请重试',
+    uploadRefreshFailed: '上传已成功，但列表刷新失败，请刷新页面',
+    uploadSummary: '成功 {{success}} 张，重复 {{duplicate}} 张，失败 {{failed}} 张',
+    fingerprintTitle: '历史图片去重索引',
+    fingerprintDescription: '为已有照片和待发布图片补算指纹；保留所有照片。历史压缩图片无法还原原文件指纹。',
+    fingerprintStart: '开始补算',
+    fingerprintProgress: '已处理 {{done}} / {{total}}，' +
+      '新增重复副本 {{duplicate}}，失败 {{failed}}',
+    fingerprintRetry: '重试失败项',
     uploadPhotos: '上传照片',
     upload: '上传',
     uploadPlural: '上传',

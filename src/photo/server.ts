@@ -1,7 +1,9 @@
 import {
+  deleteFile,
   deleteFilesWithPrefix,
   getFileNamePartsFromStorageUrl,
 } from '@/platforms/storage';
+import { forgetFingerprintUrl, withFingerprintUrlLock } from './dedup/query';
 import { convertFormDataToPhotoDbInsert } from '@/photo/form';
 import {
   FujifilmSimulation,
@@ -342,9 +344,12 @@ export const propagateRecipeTitleIfNecessary = async (
 export const deletePhotoAndFiles = async (
   photoId: string,
   photoUrl: string,
-) =>
-  deletePhoto(photoId)
-    .then(() => {
-      const { fileNameBase } = getFileNamePartsFromStorageUrl(photoUrl);
-      return deleteFilesWithPrefix(fileNameBase);
-    });
+) => {
+  const { fileNameBase } = getFileNamePartsFromStorageUrl(photoUrl);
+  if (!fileNameBase) { throw new Error('Invalid photo URL'); }
+  await deleteFilesWithPrefix(fileNameBase);
+  await deleteFile(photoUrl);
+  await deletePhoto(photoId);
+  await withFingerprintUrlLock(photoUrl, client =>
+    forgetFingerprintUrl(photoUrl, client));
+};

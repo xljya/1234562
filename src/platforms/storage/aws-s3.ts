@@ -2,7 +2,7 @@ import {
   S3Client,
   CopyObjectCommand,
   DeleteObjectCommand,
-  ListObjectsCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   GetObjectCommand,
 } from '@aws-sdk/client-s3';
@@ -56,7 +56,7 @@ export const awsS3Copy = async (
     : fileNameDestination;
   return awsS3Client().send(new CopyObjectCommand({
     Bucket: AWS_S3_BUCKET,
-    CopySource: fileNameSource,
+    CopySource: `${AWS_S3_BUCKET}${new URL(fileNameSource).pathname}`,
     Key,
     ACL: 'public-read',
   }))
@@ -65,20 +65,27 @@ export const awsS3Copy = async (
 
 export const awsS3List = async (
   Prefix: string,
-): Promise<StorageListResponse> =>
-  awsS3Client().send(new ListObjectsCommand({
-    Bucket: AWS_S3_BUCKET,
-    Prefix,
-  }))
-    .then((data) => data.Contents?.map(({ Key, LastModified, Size }) => ({
+): Promise<StorageListResponse> => {
+  const result: StorageListResponse = [];
+  let ContinuationToken: string | undefined;
+  do {
+    const data = await awsS3Client().send(new ListObjectsV2Command({
+      Bucket: AWS_S3_BUCKET, Prefix, ContinuationToken,
+    }));
+    result.push(...(data.Contents ?? []).map(({ Key, LastModified, Size }) => ({
       url: urlForKey(Key),
       fileName: Key ?? '',
       uploadedAt: LastModified,
       size: Size ? formatBytes(Size) : undefined,
-    })) ?? []);
+    })));
+    ContinuationToken = data.IsTruncated
+      ? data.NextContinuationToken : undefined;
+  } while (ContinuationToken);
+  return result;
+};
 
 export const awsS3Delete = async (Key: string) => {
-  awsS3Client().send(new DeleteObjectCommand({
+  await awsS3Client().send(new DeleteObjectCommand({
     Bucket: AWS_S3_BUCKET,
     Key,
   }));
