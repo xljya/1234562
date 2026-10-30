@@ -95,6 +95,7 @@ import {
 } from '@/album/server';
 import { addPhotoAlbumIds } from '@/album/query';
 import { getStorageUrlsForPhoto } from './storage';
+import { forgetFingerprintUrl } from './dedup/query';
 import type { VisibilityValue } from './visibility';
 import {
   COMMAND_K_PHOTO_LIMIT,
@@ -597,7 +598,8 @@ export const replacePhotoStorageAction = async (
 
 export const deleteUploadsAction = async (urls: string[]) =>
   runAuthenticatedAdminServerAction(async () => {
-    await Promise.all(urls.map(url => deleteFile(url)));
+    await Promise.all(urls.map(url => deleteFile(url).then(() =>
+      forgetFingerprintUrl(url))));
     if (urls.length > 1) {
       // Only refresh state when deleting multiple uploads
       revalidateAdminPaths();
