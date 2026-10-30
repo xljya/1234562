@@ -14,6 +14,7 @@ import { INITIAL_UPLOAD_STATE, UploadBlobArgs, UploadState } from '.';
 import { revalidateAdminAfterUploadAction } from '@/admin/actions';
 import { PATH_ADMIN_UPLOADS, pathForAdminUploadUrl } from '@/app/path';
 import { isAbortError } from '@/utility/abort';
+import { useAppText } from '@/i18n/state/client';
 import {
   DuplicateUploadError,
   prepareUpload,
@@ -28,6 +29,7 @@ export default function UploadStateProvider({
   const router = useRouter();
 
   const pathname = usePathname();
+  const appText = useAppText();
 
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
@@ -121,7 +123,7 @@ export default function UploadStateProvider({
       setUploadState({
         isUploading: false,
         uploadError: error instanceof DuplicateUploadError
-          ? 'This image has already been uploaded'
+          ? appText.admin.uploadDuplicate
           : (error as Error).message,
       });
       if (isLastBlob && lastUploadedUrl.current) {
@@ -134,7 +136,7 @@ export default function UploadStateProvider({
       }
     }
   }
-  , [pathname, router, setUploadState]);
+  , [appText.admin.uploadDuplicate, pathname, router, setUploadState]);
 
   return (
     <UploadStateContext
