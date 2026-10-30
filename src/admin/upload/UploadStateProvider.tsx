@@ -66,6 +66,7 @@ export default function UploadStateProvider({
   }, []);
 
   const shouldResetUploadStateAfterPending = useRef(false);
+  const lastUploadedUrl = useRef<string | undefined>(undefined);
   const [isUploadPending, startUploadTransition] = useTransition();
   // Only reset upload state after route transition completes
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function UploadStateProvider({
     isUploadPending && shouldResetUploadStateAfterPending.current;
 
   const onUploadStart = useCallback(() => {
+    lastUploadedUrl.current = undefined;
     setUploadState({
       isUploading: true,
       uploadError: '',
@@ -100,6 +102,7 @@ export default function UploadStateProvider({
         extension,
         { abortSignal, onProgress },
       );
+      lastUploadedUrl.current = url;
       if (isLastBlob) {
         await revalidateAdminAfterUploadAction();
         shouldResetUploadStateAfterPending.current = true;
@@ -121,6 +124,14 @@ export default function UploadStateProvider({
           ? 'This image has already been uploaded'
           : (error as Error).message,
       });
+      if (isLastBlob && lastUploadedUrl.current) {
+        shouldResetUploadStateAfterPending.current = true;
+        if (pathname === PATH_ADMIN_UPLOADS) {
+          router.refresh();
+        } else {
+          startUploadTransition(() => router.push(PATH_ADMIN_UPLOADS));
+        }
+      }
     }
   }
   , [pathname, router, setUploadState]);
