@@ -14,7 +14,7 @@ export const hashFile = async (file: Blob) => {
     byte.toString(16).padStart(2, '0')).join('');
 };
 
-export const prepareUpload = async (file: File) => {
+export const prepareUpload = async (file: Blob) => {
   const hash = await hashFile(file);
   const token = await reserveUploadAction(hash);
   if (!token) { throw new DuplicateUploadError(); }
@@ -25,10 +25,17 @@ export const uploadReservedFile = async (
   reservation: Awaited<ReturnType<typeof prepareUpload>>,
   blob: Blob,
   extension = 'jpg',
+  options?: Parameters<typeof uploadFileFromClient>[4],
 ) => {
   const { hash, token } = reservation;
   try {
-    await uploadFileFromClient(blob, `pending-${token}`, extension, false);
+    await uploadFileFromClient(
+      blob,
+      `pending-${token}`,
+      extension,
+      false,
+      options,
+    );
     return await finishUploadAction(hash, token, extension);
   } catch (error) {
     // Cleanup is server-fenced: an old attempt cannot release a newer lease.

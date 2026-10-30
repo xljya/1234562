@@ -271,24 +271,27 @@ export const moveFile = async (
   return url;
 };
 
-export const getStorageUrlsForPrefix = async (prefix = '') => {
+export const getStorageUrlsForPrefix = async (
+  prefix = '',
+  strict = false,
+) => {
   const urls: StorageListResponse = [];
+  const onError = (error: unknown): StorageListResponse => {
+    if (strict) { throw error; }
+    return [];
+  };
 
   if (HAS_VERCEL_BLOB_STORAGE) {
-    urls.push(...await vercelBlobList(prefix)
-      .catch(() => []));
+    urls.push(...await vercelBlobList(prefix).catch(onError));
   }
   if (HAS_AWS_S3_STORAGE) {
-    urls.push(...await awsS3List(prefix)
-      .catch(() => []));
+    urls.push(...await awsS3List(prefix).catch(onError));
   }
   if (HAS_CLOUDFLARE_R2_STORAGE) {
-    urls.push(...await cloudflareR2List(prefix)
-      .catch(() => []));
+    urls.push(...await cloudflareR2List(prefix).catch(onError));
   }
   if (HAS_MINIO_STORAGE) {
-    urls.push(...await minioList(prefix)
-      .catch(() => []));
+    urls.push(...await minioList(prefix).catch(onError));
   }
 
   return urls

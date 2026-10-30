@@ -13,8 +13,12 @@ import { UploadStateContext } from './UploadState';
 import { INITIAL_UPLOAD_STATE, UploadBlobArgs, UploadState } from '.';
 import { revalidateAdminAfterUploadAction } from '@/admin/actions';
 import { PATH_ADMIN_UPLOADS, pathForAdminUploadUrl } from '@/app/path';
-import { uploadTempPhotoFromClient } from '@/photo/storage';
 import { isAbortError } from '@/utility/abort';
+import {
+  DuplicateUploadError,
+  prepareUpload,
+  uploadReservedFile,
+} from '@/photo/dedup/client';
 
 export default function UploadStateProvider({
   children,
@@ -87,36 +91,38 @@ export default function UploadStateProvider({
     isLastBlob,
     abortSignal,
     onProgress,
-  }: UploadBlobArgs) =>
-    uploadTempPhotoFromClient(
-      blob,
-      extension,
-      { abortSignal, onProgress },
-    )
-      .then(async url => {
-        if (isLastBlob) {
-          await revalidateAdminAfterUploadAction();
-          shouldResetUploadStateAfterPending.current = true;
-          if (pathname === PATH_ADMIN_UPLOADS) {
-            setUploadState({ isUploading: false });
-            router.refresh();
-          } else {
-            startUploadTransition(() => hasMultipleUploads
-              ? router.push(PATH_ADMIN_UPLOADS)
-              : router.push(pathForAdminUploadUrl(url)));
-          }
+  }: UploadBlobArgs) => {
+    try {
+      const reservation = await prepareUpload(blob);
+      const url = await uploadReservedFile(
+        reservation,
+        blob,
+        extension,
+        { abortSignal, onProgress },
+      );
+      if (isLastBlob) {
+        await revalidateAdminAfterUploadAction();
+        shouldResetUploadStateAfterPending.current = true;
+        if (pathname === PATH_ADMIN_UPLOADS) {
+          setUploadState({ isUploading: false });
+          router.refresh();
+        } else {
+          startUploadTransition(() => hasMultipleUploads
+            ? router.push(PATH_ADMIN_UPLOADS)
+            : router.push(pathForAdminUploadUrl(url)));
         }
-      })
-      .catch(error => {
-        if (isAbortError(error)) {
-          throw error;
-        }
-        console.error(error);
-        setUploadState({
-          isUploading: false,
-          uploadError: error.message,
-        });
-      })
+      }
+    } catch (error) {
+      if (isAbortError(error)) { throw error; }
+      console.error(error);
+      setUploadState({
+        isUploading: false,
+        uploadError: error instanceof DuplicateUploadError
+          ? 'This image has already been uploaded'
+          : (error as Error).message,
+      });
+    }
+  }
   , [pathname, router, setUploadState]);
 
   return (

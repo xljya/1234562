@@ -2,7 +2,6 @@ import {
   copyFile,
   deleteFile,
   getFileNamePartsFromStorageUrl,
-  moveFile,
   putFile,
 } from '@/platforms/storage';
 import {
@@ -14,6 +13,7 @@ import {
   generateRandomFileNameForPhoto,
   getOptimizedPhotoFileMeta,
 } from '.';
+import { linkFingerprintUrl, forgetFingerprintUrl } from '../dedup/query';
 
 export const storeOptimizedPhotosForUrl = async (
   url: string,
@@ -34,7 +34,7 @@ export const convertUploadToPhoto = async ({
   uploadUrl,
   fileBytes: _fileBytes,
   shouldStripGpsData,
-  shouldDeleteOrigin = true,
+  shouldDeleteOrigin = false,
 } : {
   uploadUrl: string
   fileBytes?: ArrayBuffer
@@ -47,22 +47,16 @@ export const convertUploadToPhoto = async ({
   const fileBytes = _fileBytes
     ? _fileBytes
     : await fetchImageUrlSafely(uploadUrl);
-  let promise: Promise<string>;
-  if (shouldStripGpsData) {
-    const fileWithoutGps = await removeGpsData(fileBytes);
-    promise = putFile(fileWithoutGps, fileName)
-      .then(async url => {
-        if (url && shouldDeleteOrigin) { await deleteFile(uploadUrl); }
-        return url;
-      });
-  } else {
-    promise = shouldDeleteOrigin
-      ? moveFile(uploadUrl, fileName)
-      : copyFile(uploadUrl, fileName);
+  const updatedUrl = shouldStripGpsData
+    ? await putFile(await removeGpsData(fileBytes), fileName)
+    : await copyFile(uploadUrl, fileName);
+  // Callers retain the origin until their database write succeeds.
+  await storeOptimizedPhotosForUrl(updatedUrl, fileBytes);
+  if (shouldDeleteOrigin) {
+    await linkFingerprintUrl(uploadUrl, updatedUrl);
+    await deleteFile(uploadUrl);
+    await forgetFingerprintUrl(uploadUrl);
   }
-  // Store optimized photos after original photo is copied/moved
-  const updatedUrl = await promise
-    .then(async url => storeOptimizedPhotosForUrl(url, fileBytes));
 
   return updatedUrl;
 };
